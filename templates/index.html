@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agri Chatbot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="This is an Agriculture chatbot that helps farmers make the right decisions." />
+    
+    <!-- Favicon -->
+    <link rel="icon" href="static/images/favicon.ico" type="image/x-icon">
+    
+    <!-- Bootstrap and Google Fonts -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: url('static/images/background.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 40px auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #4CAF50, #1D976C);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        p {
+            text-align: center;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        #chat-container {
+            height: 50vh;
+            overflow-y: auto;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            margin-bottom: 20px;
+        }
+
+        .chat-bubble {
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .chat-bubble.user {
+            background-color: #4CAF50;
+            color: white;
+            float: right;
+            text-align: right;
+        }
+
+        .chat-bubble.bot {
+            background-color: #e9e9e9;
+            color: #333;
+            float: left;
+            text-align: left;
+        }
+
+        .clear {
+            clear: both;
+        }
+
+        .form-control {
+            border-radius: 20px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            border-radius: 20px;
+            padding: 10px;
+            font-size: 1.1rem;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #1D976C, #4CAF50);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #4CAF50, #1D976C);
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AgriTalk AI</h1>
+        <p>Please have patience, responses might take some time...</p>
+
+        <div id="chat-container"></div>
+
+        <input type="text" class="form-control" id="user-input" placeholder="Type your message...">
+        <button class="btn btn-primary btn-block" id="send-btn">Send</button>
+        <button class="btn btn-primary btn-block" id="record-btn">Record</button>
+        
+        <audio id="audio" controls></audio>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#send-btn').on('click', function() {
+                sendMessage();
+            });
+
+            $('#user-input').on('keypress', function(e) {
+                if (e.which === 13) {
+                    sendMessage();
+                }
+            });
+
+            $('#record-btn').on('click', function() {
+                toggleRecording();
+            });
+
+            var recording = false;
+            var recorder;
+
+            function toggleRecording() {
+                if (recording) {
+                    stopRecording();
+                    $('#record-btn').text('Record');
+                } else {
+                    startRecording();
+                    $('#record-btn').text('Stop Recording');
+                }
+                recording = !recording;
+            }
+
+            function startRecording() {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(function(stream) {
+                            recorder = new MediaRecorder(stream);
+                            var chunks = [];
+
+                            recorder.addEventListener('dataavailable', function(e) {
+                                chunks.push(e.data);
+                            });
+
+                            recorder.addEventListener('stop', function() {
+                                var audioBlob = new Blob(chunks, { type: 'audio/webm' });
+                                var formData = new FormData();
+                                formData.append('audio', audioBlob, 'audio.webm');
+                                sendAudio(formData);
+                            });
+
+                            recorder.start();
+                        })
+                        .catch(function(err) {
+                            console.error('Error accessing microphone:', err);
+                        });
+                } else {
+                    console.error('getUserMedia is not supported in this browser.');
+                }
+            }
+
+            function stopRecording() {
+                if (recorder) {
+                    recorder.stop();
+                }
+            }
+
+            function sendMessage() {
+                var userInput = $('#user-input').val();
+                if (userInput.trim() !== '') {
+                    $('#user-input').val('');
+                    $('#chat-container').append('<div class="chat-bubble user">' + userInput + '</div><div class="clear"></div>');
+                    scrollToBottom();
+    
+                    $('#chat-container').append('<div class="chat-bubble bot">Bot is typing...</div><div class="clear"></div>');
+                    scrollToBottom();
+
+                    $.post('/chat', {text: userInput}, function(response) {
+                        $('#chat-container .bot:last').remove();
+    
+                        $('#chat-container').append('<div class="chat-bubble bot">' + response.text + '</div><div class="clear"></div>');
+                        scrollToBottom();
+    
+                        setVoice(response.voice);
+                    });
+                }
+            }
+
+            function sendAudio(formData) {
+                $('#chat-container').append('<div class="chat-bubble bot">Uploading audio...</div><div class="clear"></div>');
+                scrollToBottom();
+
+                $.ajax({
+                    url: '/chat',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        $('#chat-container .bot:last').remove();
+
+                        var transcription = response.text;
+                        $('#user-input').val(transcription);
+                        sendMessage();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error uploading audio:', error);
+                    }
+                });
+            }
+
+            function setVoice(voiceFile) {
+                var audio = document.getElementById('audio');
+                audio.pause();
+                audio.src = voiceFile;
+                audio.load();
+                audio.play();
+            }
+
+            function scrollToBottom() {
+                $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+            }
+        });
+    </script>
+</body>
+</html>
