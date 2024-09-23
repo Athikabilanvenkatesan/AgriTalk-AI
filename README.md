@@ -58,6 +58,7 @@ gemini_key=your_gemini_api_key
 python app.py
 ```
 
+# Response:
 
 ![image](https://github.com/user-attachments/assets/5130ee44-68d8-4ab8-b569-3e83ff3be5bf)
 
